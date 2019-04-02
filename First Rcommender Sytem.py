@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import math
 
 # =============================================================================
 # This dataset (ml-latest-small) describes 5-star rating and free-text tagging 
@@ -61,8 +62,9 @@ AFO_user_rating = movie_matrix['Air Force One (1997)']
 contact_user_rating = movie_matrix['Contact (1997)']
 AFO_user_rating.head()
 contact_user_rating.head()
-forrest_gump_ratings = movie_matrix['Forrest Gump (1994)'] 
+forrest_gump_ratings = movie_matrix['(500) Days of Summer (2009)'] 
 forrest_gump_ratings.head()
+
 
 #Finding the correlation
 #By using Corrwith omputes the pairwise correlation of rows or columns of 
@@ -84,9 +86,86 @@ corr_forrest_gump = pd.DataFrame(similar_to_forest_gump, columns=['Correlation']
 corr_forrest_gump.dropna(inplace=True)  
 corr_forrest_gump.head() 
 
+# Let's get the cosine similarity
+# =============================================================================
+# It is represented by the dot product of 2 vectors divided by the 
+# product of their norms (v1 dot v2)/{||v1||*||v2||)
+# =============================================================================
+def cos_sim(a, b):
+    # a and b must be vectors
+	dot_product = np.dot(a, b)
+	norm_a = np.linalg.norm(a)
+	norm_b = np.linalg.norm(b)
+	return dot_product / (norm_a * norm_b)
+
+def cosine_simi(vector,matrix):
+   return ( np.sum(vector*matrix,axis=1) / 
+           ( np.sqrt(np.sum(matrix**2,axis=1)) * np.sqrt(np.sum(vector**2)) ) )[::-1]
+
+# =============================================================================
+#  Let's compute the  angle
+#  This will be calculated by arccos of the dot product of 2 vectors 
+#  divided by the product of their norms  
+# =============================================================================
+def angle_similarity(cosine_sim):
+    angle_in_radians = math.acos(cosine_sim)
+    return math.degrees(angle_in_radians)
 
 
+# remove the nan values
+util = movie_matrix.fillna(0)
+movie1 = AFO_user_rating.fillna(0) 
+# transforms the dataframes into numpy arrays
+#utility_matrix = np.array(movie_matrix.pivot(index = 'user_id', columns ='movie_id', values = 'rating').fillna(0))
+utility_matrix = util.values
+movie11 = movie1.values
 
+
+# Another way to get the simmilarity
+from scipy import spatial
+r = utility_matrix[:,10]
+similar = 1 - spatial.distance.cosine(movie1, r)
+similar1 = cos_sim(movie1,r)
+similar2 = cosine_simi(movie11,r.reshape(1,-1))
+
+# With the function from SciKit Learn
+from sklearn.metrics.pairwise import cosine_similarity
+#single evaluation of the cosine similarity vector vs 1 vector
+similarity = cosine_similarity(movie11.reshape(1,-1),r.reshape(1,-1))
+
+# getting the location index of a desired movie
+movie_index = movie_matrix.columns.get_loc("'Hellboy': The Seeds of Creation (2004)")
+# creating the isolated vector for that specific movie could be either one of the 2 following lines
+#movie_selected  = utility_matrix[1,0:np.size(utility_matrix,0)].reshape(1,-1)
+movie_selected = utility_matrix[:,movie_index].reshape(1,-1)
+# get the transpose matrix of the utility matrix as needed to compute the cosine similarity function
+utility_matrix_trans = utility_matrix.T
+similarity2 = cosine_similarity(movie_selected, utility_matrix_trans)
+
+##################################################################################
+
+dataframe = pd.DataFrame.from_records(similarity2)
+dataframe1 = pd.DataFrame(data=similarity2, columns='tre')
+similar_df = pd.merge(dataframe1, movie_titles, on='movies1') 
+
+
+indices = pd.Series(movie_titles.index, index=movie_titles['title'])
+#idx = indices[title]
+
+# Get the pairwsie similarity scores of all movies with that movie
+sim_scores = list(enumerate(similarity))
+
+# Sort the movies based on the similarity scores
+sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
+
+# Get the scores of the 10 most similar movies
+sim_scores = sim_scores[1:11]
+
+# Get the movie indices
+movie_indices = [i[0] for i in sim_scores]
+
+# Return the top 10 most similar movies
+return movie_titles['title'].iloc[movie_indices]
 
 
  
